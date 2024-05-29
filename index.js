@@ -32,6 +32,7 @@ async function run() {
 
         // Start
         const userCollection = client.db('GuruDoctor').collection('user');
+        const faq_infoCollection = client.db('GuruDoctor').collection('faq_info');
 
         // Set User
         app.get('/users', async (req, res) => {
@@ -43,6 +44,13 @@ async function run() {
             const user = req.body;
             console.log(user);
             const result = await userCollection.insertOne(user);
+            res.send(result);
+        })
+
+        // FAQ Info
+        app.get('/faq_info', async(req, res) =>{
+            const faq = faq_infoCollection.find();
+            const result = await faq.toArray();
             res.send(result);
         })
 
