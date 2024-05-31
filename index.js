@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
@@ -33,6 +33,7 @@ async function run() {
         // Start
         const userCollection = client.db('GuruDoctor').collection('user');
         const faq_infoCollection = client.db('GuruDoctor').collection('faq_info');
+        const assignmentsCollection = client.db('GuruDoctor').collection('assignments');
 
         // Set User
         app.get('/users', async (req, res) => {
@@ -40,7 +41,7 @@ async function run() {
             const result = await user.toArray();
             res.send(result);
         })
-        app.post('/users', async(req, res) =>{
+        app.post('/users', async (req, res) => {
             const user = req.body;
             console.log(user);
             const result = await userCollection.insertOne(user);
@@ -48,9 +49,75 @@ async function run() {
         })
 
         // FAQ Info
-        app.get('/faq_info', async(req, res) =>{
+        app.get('/faq_info', async (req, res) => {
             const faq = faq_infoCollection.find();
             const result = await faq.toArray();
+            res.send(result);
+        })
+
+        // Create Assignment
+        app.get('/assignments', async (req, res) => {
+            const { diffLevel, _id } = req.query;
+            const query = {};
+
+            if (diffLevel) {
+                query.diffLevel = diffLevel;
+            }
+            if (_id) {
+                try {
+                    query._id = new ObjectId(_id);
+                } catch (error) {
+                    return res.status(400).send('Invalid _id format');
+                }
+            }
+
+            console.log('Uid', query);
+
+            let result;
+            if (_id) {
+                result = await assignmentsCollection.findOne(query);
+            } else {
+                result = await assignmentsCollection.find(query).toArray();
+            }
+            res.send(result);
+        })
+
+
+        app.post('/assignments', async (req, res) => {
+            const assignment = req.body;
+            // console.log(assignment);
+            const result = await assignmentsCollection.insertOne(assignment);
+            res.send(result);
+        })
+        app.delete('/assignments', async (req, res) => {
+            const { deleteAssignments } = req.query;
+            const query = { _id: new ObjectId(deleteAssignments) };
+            // console.log(query);
+            const result = await assignmentsCollection.deleteOne(query);
+            res.send(result);
+        })
+
+        // update
+        app.put('/assignments', async(req, res) => {
+            const id = req.query._id;
+            const assignmentData = req.body.formData;
+            const filter = { _id: new ObjectId(id) }
+            const options = { upsert: true };
+
+            console.log('Update', assignmentData);
+
+            const newAssignment = {
+                $set:{
+                    title: assignmentData.title,
+                    description: assignmentData.description,
+                    marks: assignmentData.marks,
+                    diffLevel: assignmentData.diffLevel,
+                    dueDate: assignmentData.dueDate,
+                    photoUrl: assignmentData.photoUrl
+                }
+            }
+
+            const result = await assignmentsCollection.updateOne(filter, newAssignment, options);
             res.send(result);
         })
 
