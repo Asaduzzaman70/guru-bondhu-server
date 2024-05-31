@@ -34,6 +34,7 @@ async function run() {
         const userCollection = client.db('GuruDoctor').collection('user');
         const faq_infoCollection = client.db('GuruDoctor').collection('faq_info');
         const assignmentsCollection = client.db('GuruDoctor').collection('assignments');
+        const submittedAssignmentsCollection = client.db('GuruDoctor').collection('submittedAssignments');
 
         // Set User
         app.get('/users', async (req, res) => {
@@ -98,7 +99,7 @@ async function run() {
         })
 
         // update
-        app.put('/assignments', async(req, res) => {
+        app.put('/assignments', async (req, res) => {
             const id = req.query._id;
             const assignmentData = req.body.formData;
             const filter = { _id: new ObjectId(id) }
@@ -107,7 +108,7 @@ async function run() {
             console.log('Update', assignmentData);
 
             const newAssignment = {
-                $set:{
+                $set: {
                     title: assignmentData.title,
                     description: assignmentData.description,
                     marks: assignmentData.marks,
@@ -119,6 +120,37 @@ async function run() {
 
             const result = await assignmentsCollection.updateOne(filter, newAssignment, options);
             res.send(result);
+        })
+
+        // Submitted Assignments
+        app.get('/submitDoc', async (req, res) => {
+            const submitDoc = submittedAssignmentsCollection.find();
+            const result = await submitDoc.toArray();
+            res.send(result);
+        })
+        app.post('/submitDoc', async (req, res) => {
+            const submitDoc = req.body;
+            const { attemptId, userId } = req.query;
+            
+            if (!attemptId || !userId) {
+                return res.status(400).send({ error: 'AttemptId and userId are required' });
+            }
+
+            try{
+                const exitingSubmission = await submittedAssignmentsCollection.findOne({attemptId, userId});
+                if (exitingSubmission) {
+                    return res.status(400).send({ error: 'User has already submitted this assignment.' });
+                }
+
+                const result = await submittedAssignmentsCollection.insertOne(submitDoc);
+                res.status(200).send(result);
+            }catch (error) {
+                console.error('Error submitting assignment:', error);
+                res.status(500).send({ error: 'An error occurred while submitting the assignment. Please try again.' });
+            }
+
+            // const result = await submittedAssignmentsCollection.insertOne(submitDoc);
+            // res.send(result);
         })
 
         // Send a ping to confirm a successful connection
