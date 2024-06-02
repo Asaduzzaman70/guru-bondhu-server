@@ -72,7 +72,7 @@ async function run() {
                 }
             }
 
-            console.log('Uid', query);
+            // console.log('Uid', query);
 
             let result;
             if (_id) {
@@ -105,7 +105,7 @@ async function run() {
             const filter = { _id: new ObjectId(id) }
             const options = { upsert: true };
 
-            console.log('Update', assignmentData);
+            // console.log('Update', assignmentData);
 
             const newAssignment = {
                 $set: {
@@ -124,33 +124,100 @@ async function run() {
 
         // Submitted Assignments
         app.get('/submitDoc', async (req, res) => {
-            const submitDoc = submittedAssignmentsCollection.find();
-            const result = await submitDoc.toArray();
+            const { userUid, statusPending } = req.query;
+            const query = {};
+            console.log("Status", statusPending, userUid);
+            if (userUid) {
+                try {
+                    query.userId = userUid;
+                } catch (error) {
+                    return res.status(400).send('Invalid _id format');
+                }
+            }
+            if (statusPending) {
+                query.status = 'Pending';
+            }
+            // console.log('Here is', query, userUid);
+
+            let result;
+            result = await submittedAssignmentsCollection.find(query).toArray();
             res.send(result);
         })
         app.post('/submitDoc', async (req, res) => {
             const submitDoc = req.body;
             const { attemptId, userId } = req.query;
-            
+
             if (!attemptId || !userId) {
                 return res.status(400).send({ error: 'AttemptId and userId are required' });
             }
 
-            try{
-                const exitingSubmission = await submittedAssignmentsCollection.findOne({attemptId, userId});
-                if (exitingSubmission) {
-                    return res.status(400).send({ error: 'User has already submitted this assignment.' });
+
+
+            try {
+                // Check if the user has already submitted this assignment
+                const existingSubmission = await submittedAssignmentsCollection.findOne({ attemptId, userId });
+
+                if (existingSubmission) {
+                    if (existingSubmission.status === 'Pending') {
+                        return res.status(400).send({ error: 'User has a pending submission and cannot resubmit until it is complete.' });
+                    } else if (existingSubmission.status === 'Complete') {
+                        // Allow resubmission if status is complete
+                        const result = await submittedAssignmentsCollection.updateOne(
+                            { attemptId, userId },
+                            { $set: { ...submitDoc, status: 'Pending' } }
+                        );
+                        return res.status(200).send(result);
+                    }
+                } else {
+                    // If no existing submission, insert the new submission
+                    const result = await submittedAssignmentsCollection.insertOne({ ...submitDoc, attemptId, userId, status: 'Pending' });
+                    return res.status(200).send(result);
                 }
 
-                const result = await submittedAssignmentsCollection.insertOne(submitDoc);
-                res.status(200).send(result);
-            }catch (error) {
+            } catch (error) {
                 console.error('Error submitting assignment:', error);
                 res.status(500).send({ error: 'An error occurred while submitting the assignment. Please try again.' });
             }
 
             // const result = await submittedAssignmentsCollection.insertOne(submitDoc);
             // res.send(result);
+        })
+        app.put('/submitDoc', async (req, res) => {
+            const submitAssignmentData = req.body;
+            const { attemptId, userId } = req.query;
+
+            console.log(submitAssignmentData);
+
+            if (!attemptId || !userId) {
+                return res.status(400).send({ error: 'AttemptId and userId are required' });
+            }
+
+            try {
+                // Check if the user has already submitted this assignment
+                const existingSubmission = await submittedAssignmentsCollection.findOne({ attemptId, userId });
+
+                if (existingSubmission) {
+                    if (existingSubmission.status === 'Pending') {
+                        // Allow resubmission if status is complete
+                        const result = await submittedAssignmentsCollection.updateOne(
+                            { attemptId, userId },
+                            { $set: { ...submitAssignmentData, status: 'Complete' } }
+                        );
+                        return res.status(200).send(result);
+                    } else if (existingSubmission.status === 'Complete') {
+                        return res.status(400).send({ error: 'User has a complete submission and cannot resubmit until it is pending.' });
+                    }
+                } else {
+                    // If no existing submission, insert the new submission
+                    const result = await submittedAssignmentsCollection.insertOne({ ...submitDoc, attemptId, userId, status: 'Pending' });
+                    return res.status(200).send(result);
+                }
+
+            } catch (error) {
+                console.error('Error submitting assignment:', error);
+                res.status(500).send({ error: 'An error occurred while submitting the assignment. Please try again.' });
+            }
+
         })
 
         // Send a ping to confirm a successful connection
