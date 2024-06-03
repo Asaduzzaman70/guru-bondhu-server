@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const app = express();
@@ -9,8 +11,13 @@ const port = process.env.PORT || 5000;
 // c77YTDFAKrpRASLF
 
 // Middleware
-app.use(cors())
-app.use(express.json())
+// app.use(cors())
+app.use(cors({
+    credentials: true,
+    origin: ['http://localhost:5173'],
+}))
+app.use(express.json());
+app.use(cookieParser());
 
 
 // Express Js Connected Code
@@ -36,6 +43,22 @@ async function run() {
         const assignmentsCollection = client.db('GuruDoctor').collection('assignments');
         const submittedAssignmentsCollection = client.db('GuruDoctor').collection('submittedAssignments');
 
+        // Auth related
+        app.post('/jwt', (req, res) =>{
+            const user = req.body;
+            // console.log('user:-',user);
+            const token = jwt.sign(user, process.env.SECRET, {expiresIn: '1h'});
+            console.log('My Token:-', token);
+            res
+                .cookie('token', token,{
+                    httpOnly: true,
+                    secure: false,
+                    // sameSite: 'none'
+                })
+                .send({message: true, token});
+        })
+
+        // Services
         // Set User
         app.get('/users', async (req, res) => {
             const user = userCollection.find();
