@@ -21,12 +21,12 @@ app.use(cookieParser());
 
 
 // Verify Token
-const verifyToken = (req, res, next) =>{
+const verifyToken = (req, res, next) => {
     const token = req?.cookies?.token;
     if (!token) {
-        return res.status(401).send({message: 'not authorized'});
+        return res.status(401).send({ message: 'not authorized' });
     }
-    jwt.verify(token, process.env.SECRET, (err, decoded) =>{
+    jwt.verify(token, process.env.SECRET, (err, decoded) => {
         if (err) {
             return res.status(401).send('unauthorize');
         }
@@ -62,9 +62,9 @@ async function run() {
         // Auth related
         app.post('/jwt', (req, res) => {
             const user = req.body;
-            console.log('user:-',user);
+            // console.log('user:-', user);
             const token = jwt.sign(user, process.env.SECRET, { expiresIn: '1h' });
-            console.log('My Token:-', token);
+            // console.log('My Token:-', token);
             res
                 .cookie('token', token, {
                     httpOnly: true,
@@ -96,14 +96,22 @@ async function run() {
         })
 
         // Create Assignment
-        app.get('/assignments', async (req, res) => {
-            const { diffLevel, _id } = req.query;
+        app.get('/assignments', verifyToken, async (req, res) => {
+            const { diffLevel, _id, userUid } = req.query;
+
+            const token = req.cookies.token;
+            // console.log('Assignment Token Request:-', token);
+            // console.log('User Uid', req.user.uId);
+
             const query = {};
 
             if (diffLevel) {
                 query.diffLevel = diffLevel;
             }
             if (_id) {
+                if (req.user.uId !== userUid) {
+                    return res.status(403).send({ message: 'forbidden access' })
+                }
                 try {
                     query._id = new ObjectId(_id);
                 } catch (error) {
@@ -129,8 +137,16 @@ async function run() {
             const result = await assignmentsCollection.insertOne(assignment);
             res.send(result);
         })
-        app.delete('/assignments', async (req, res) => {
+        // userUid
+        app.delete('/assignments', verifyToken, async (req, res) => {
             const { deleteAssignments } = req.query;
+            const userUid = req.query.userUid;
+            // console.log('Delete Log: ------->', userUid);
+
+            if (req.user.uId !== userUid) {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+
             const query = { _id: new ObjectId(deleteAssignments) };
             // console.log(query);
             const result = await assignmentsCollection.deleteOne(query);
@@ -138,7 +154,12 @@ async function run() {
         })
 
         // update
-        app.put('/assignments', async (req, res) => {
+        app.put('/assignments', verifyToken, async (req, res) => {
+            const userUid = req.query.userUid;
+            if (req.user.uId !== userUid) {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+
             const id = req.query._id;
             const assignmentData = req.body.formData;
             const filter = { _id: new ObjectId(id) }
@@ -167,9 +188,9 @@ async function run() {
 
             const token = req.cookies.token;
             console.log('Assignment Token Request:-', token);
-            console.log('User Uid',req.user.uId);
+            console.log('User Uid', req.user.uId);
             if (req.user.uId !== userUid) {
-                return res.status(403).send({message: 'forbidden access'})
+                return res.status(403).send({ message: 'forbidden access' })
             }
 
             const query = {};
