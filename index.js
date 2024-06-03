@@ -20,6 +20,22 @@ app.use(express.json());
 app.use(cookieParser());
 
 
+// Verify Token
+const verifyToken = (req, res, next) =>{
+    const token = req?.cookies?.token;
+    if (!token) {
+        return res.status(401).send({message: 'not authorized'});
+    }
+    jwt.verify(token, process.env.SECRET, (err, decoded) =>{
+        if (err) {
+            return res.status(401).send('unauthorize');
+        }
+        req.user = decoded;
+        // console.log('I am Decoded',decoded);
+        next();
+    })
+}
+
 // Express Js Connected Code
 const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.USER_PASSWORD}@cluster0.z51z0nl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -44,18 +60,18 @@ async function run() {
         const submittedAssignmentsCollection = client.db('GuruDoctor').collection('submittedAssignments');
 
         // Auth related
-        app.post('/jwt', (req, res) =>{
+        app.post('/jwt', (req, res) => {
             const user = req.body;
-            // console.log('user:-',user);
-            const token = jwt.sign(user, process.env.SECRET, {expiresIn: '1h'});
+            console.log('user:-',user);
+            const token = jwt.sign(user, process.env.SECRET, { expiresIn: '1h' });
             console.log('My Token:-', token);
             res
-                .cookie('token', token,{
+                .cookie('token', token, {
                     httpOnly: true,
                     secure: false,
                     // sameSite: 'none'
                 })
-                .send({message: true, token});
+                .send({ message: true, token });
         })
 
         // Services
@@ -146,10 +162,18 @@ async function run() {
         })
 
         // Submitted Assignments
-        app.get('/submitDoc', async (req, res) => {
+        app.get('/submitDoc', verifyToken, async (req, res) => {
             const { userUid, statusPending } = req.query;
+
+            const token = req.cookies.token;
+            console.log('Assignment Token Request:-', token);
+            console.log('User Uid',req.user.uId);
+            if (req.user.uId !== userUid) {
+                return res.status(403).send({message: 'forbidden access'})
+            }
+
             const query = {};
-            console.log("Status", statusPending, userUid);
+            // console.log("Status", statusPending, userUid);
             if (userUid) {
                 try {
                     query.userId = userUid;
