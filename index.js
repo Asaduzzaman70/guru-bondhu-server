@@ -63,16 +63,30 @@ async function run() {
         app.post('/jwt', (req, res) => {
             const user = req.body;
             // console.log('user:-', user);
+            const cookieOptions = {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+            };
+
             const token = jwt.sign(user, process.env.SECRET, { expiresIn: '1h' });
             // console.log('My Token:-', token);
+            res.cookie("token", token, cookieOptions).send({ message: true, token });
+        });
+        app.post("/logout", async (req, res) => {
+            const user = req.body;
+            console.log("logging out", user);
+            const cookieOptions = {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+            };
             res
-                .cookie('token', token, {
-                    httpOnly: true,
-                    secure: false,
-                    // sameSite: 'none'
-                })
-                .send({ message: true, token });
-        })
+                .clearCookie("token", { cookieOptions, maxAge: 0 })
+                .send({ success: true });
+        });
+
+
 
         // Services
         // Set User
@@ -104,7 +118,7 @@ async function run() {
             // console.log('User Uid', req.user.uId);
 
             const query = {};
-
+            console.log('Dif Level :-', diffLevel);
             if (diffLevel) {
                 query.diffLevel = diffLevel;
             }
@@ -184,18 +198,19 @@ async function run() {
 
         // Submitted Assignments
         app.get('/submitDoc', verifyToken, async (req, res) => {
-            const { userUid, statusPending } = req.query;
+            const { userUid, statusPending, userUid2 } = req.query;
 
             const token = req.cookies.token;
-            console.log('Assignment Token Request:-', token);
-            console.log('User Uid', req.user.uId);
-            if (req.user.uId !== userUid) {
-                return res.status(403).send({ message: 'forbidden access' })
-            }
+            // console.log('Assignment Token Request:-', token);
+            // console.log('User Uid', req.user.uId);
+
 
             const query = {};
             // console.log("Status", statusPending, userUid);
             if (userUid) {
+                if (req.user.uId !== userUid) {
+                    return res.status(403).send({ message: 'forbidden access' })
+                }
                 try {
                     query.userId = userUid;
                 } catch (error) {
@@ -203,6 +218,9 @@ async function run() {
                 }
             }
             if (statusPending) {
+                if (req.user.uId !== userUid2) {
+                    return res.status(403).send({ message: 'forbidden access' })
+                }
                 query.status = 'Pending';
             }
             // console.log('Here is', query, userUid);
