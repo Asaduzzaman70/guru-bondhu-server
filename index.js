@@ -121,11 +121,11 @@ async function run() {
 
 
         // Create Assignment
-        app.get('/assignments', verifyToken, async (req, res) => {
+        app.get('/assignments', async (req, res) => {
             const { diffLevel, _id, userUid } = req.query;
             const page = parseInt(req.query.page);
             const size = parseInt(req.query.size);
-            const token = req.cookies.token;
+            // const token = req.cookies.token;
             // console.log('Assignment Token Request:-', token);
             // console.log('User Uid', req.user.uId);
 
@@ -135,9 +135,9 @@ async function run() {
                 query.diffLevel = diffLevel;
             }
             if (_id) {
-                if (req.user.uId !== userUid) {
-                    return res.status(403).send({ message: 'forbidden access' })
-                }
+                // if (req.user.uId !== userUid) {
+                //     return res.status(403).send({ message: 'forbidden access' })
+                // }
                 try {
                     query._id = new ObjectId(_id);
                 } catch (error) {
