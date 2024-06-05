@@ -109,16 +109,18 @@ async function run() {
             res.send(result);
         })
 
+
         // Create Assignment
         app.get('/assignments', verifyToken, async (req, res) => {
             const { diffLevel, _id, userUid } = req.query;
-
+            const page = parseInt(req.query.page);
+            const size = parseInt(req.query.size);
             const token = req.cookies.token;
             // console.log('Assignment Token Request:-', token);
             // console.log('User Uid', req.user.uId);
 
             const query = {};
-            console.log('Dif Level :-', diffLevel);
+            console.log('Dif Level :-', { page, size });
             if (diffLevel) {
                 query.diffLevel = diffLevel;
             }
@@ -139,9 +141,18 @@ async function run() {
             if (_id) {
                 result = await assignmentsCollection.findOne(query);
             } else {
-                result = await assignmentsCollection.find(query).toArray();
+                result = await assignmentsCollection.find(query)
+                    .skip(page * size)
+                    .limit(size)
+                    .toArray();
             }
             res.send(result);
+        })
+
+        // assignments count
+        app.get('/assignmentsCount', async (req, res) => {
+            const assignmentsCount = await assignmentsCollection.countDocuments();
+            res.send({ assignmentsCount });
         })
 
 
@@ -272,7 +283,7 @@ async function run() {
             const submitAssignmentData = req.body;
             const { attemptId, userId } = req.query;
 
-            console.log(submitAssignmentData);
+            // console.log(submitAssignmentData);
 
             if (!attemptId || !userId) {
                 return res.status(400).send({ error: 'AttemptId and userId are required' });
