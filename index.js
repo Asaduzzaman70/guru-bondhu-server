@@ -12,14 +12,16 @@ const port = process.env.PORT || 5000;
 
 // Middleware
 // app.use(cors())
-app.use(cors({
-    credentials: true,
-    origin: ['http://localhost:5173'],
-}))
+// app.use(cors({
+//     credentials: true,
+//     origin: ['http://localhost:5173'],
+// }))
 app.use(
     cors({
         origin: [
-            "http://localhost:5173"
+            "http://localhost:5173",
+            "https://guru-bondhu.web.app",
+            "https://guru-bondhu.firebaseapp.com"
         ],
         credentials: true,
     })
